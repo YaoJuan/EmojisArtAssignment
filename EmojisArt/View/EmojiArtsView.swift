@@ -36,13 +36,15 @@ struct EmojiArtsView: View {
                         
                         var location = CGPoint(x: location.x, y: geometry.convert(location, from: .global).y)
                         location = CGPoint(x: location.x - geometry.size.width/2, y: location.y - geometry.size.height/2)
+                        location = CGPoint(x: location.x - panOffset.width, y: location.y - panOffset.height)
+                        location = CGPoint(x: location.x / zoomScale, y: location.y / zoomScale)
                         return self.drop(providers: providers, at: location)
                     }
                     ForEach(emojiArtDocument.emojis) { emoji in
                         Text(emoji.text)
                             .font(animatableWithSize: emoji.fontSize * zoomScale)
                             .position(position(for: emoji, in: geometry.size))
-//                            .gesture(self.emojiPanGesture(move: emoji))
+                            .gesture(self.emojiPanGesture(move: emoji))
 //                            .gesture(self.gestureToZoom(emoji))
                     }
                 }
@@ -105,7 +107,7 @@ struct EmojiArtsView: View {
     @GestureState private var emojiGesturePanOffset: CGSize = .zero
     private func emojiPanGesture(move emoji: EmojiArt.Emoji) -> some Gesture {
         DragGesture().updating($emojiGesturePanOffset) { lastDragGestureValue, emojiGesturePanOffset, transcation in
-            self.emojiArtDocument.moveEmoji(emoji, by: lastDragGestureValue.translation - self .emojiGesturePanOffset)
+            self.emojiArtDocument.moveEmoji(emoji, by: (lastDragGestureValue.translation - self .emojiGesturePanOffset) / zoomScale)
             emojiGesturePanOffset = lastDragGestureValue.translation
         }
     }

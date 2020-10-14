@@ -9,7 +9,7 @@ import SwiftUI
 
 class EmojiArtDocument: ObservableObject {
     
-    static let palette: String = "⭐️⛈🍎🌏🥨⚾️"
+    static let palette: String = "⭐️⛈🍎🌏🥨⚾️🏃🏻‍♀️🏃🏿"
     
     static let emojiArtCacheKey = "EmojiArtDocument.emojiArtCacheKey"
     @Published private var emojiArt: EmojiArt {

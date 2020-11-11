@@ -11,7 +11,8 @@ import SwiftUI
 struct EmojisArtApp: App {
     var body: some Scene {
         WindowGroup {
-            EmojiArtsView()
+            EmojiArtDocumentChooser()
+                .environmentObject(EmojiArtDocumentStore(named: "Emoji Art"))
         }
     }
 }

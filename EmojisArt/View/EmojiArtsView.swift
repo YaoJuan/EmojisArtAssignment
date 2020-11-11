@@ -10,18 +10,28 @@ import SwiftUI
 struct EmojiArtsView: View {
     @ObservedObject var emojiArtDocument: EmojiArtDocument = EmojiArtDocument()
     
+    @State var choosenPalette: String = ""
+    init(document: EmojiArtDocument) {
+        self.emojiArtDocument = document
+        _choosenPalette = State(wrappedValue: self.emojiArtDocument.defaultPalette)
+    }
+    
     var body: some View {
         VStack {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack {
-                    ForEach(EmojiArtDocument.palette.map { String($0) }, id: \.self) { element in
-                        Text(element).onDrag { NSItemProvider(object: element as NSString) }
+            HStack {
+                PaletteChoose(emojiArtDocument: emojiArtDocument, choosenPalette: $choosenPalette)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(choosenPalette.map { String($0) }, id: \.self) { element in
+                            Text(element).onDrag { NSItemProvider(object: element as NSString) }
+                        }
                     }
-                }
-                .font(Font.system(size: defaultEmojiSize))
-                .padding(.horizontal)
+                    .font(Font.system(size: defaultEmojiSize))
+                    
 
-            }
+                }.layoutPriority(1)
+            }.padding(2)
+
             GeometryReader { geometry in
                 ZStack {
                     Color.orange.overlay(
@@ -40,20 +50,54 @@ struct EmojiArtsView: View {
                         location = CGPoint(x: location.x / zoomScale, y: location.y / zoomScale)
                         return self.drop(providers: providers, at: location)
                     }
-                    ForEach(emojiArtDocument.emojis) { emoji in
-                        Text(emoji.text)
-                            .font(animatableWithSize: emoji.fontSize * zoomScale)
-                            .position(position(for: emoji, in: geometry.size))
-                            .gesture(self.emojiPanGesture(move: emoji))
-//                            .gesture(self.gestureToZoom(emoji))
+                    .onReceive(self.emojiArtDocument.$backgroundImage) { image in
+                        zoomToFit(image, in: geometry.size)
+                    }.navigationBarItems(trailing: Button(action: {
+                        if let url = UIPasteboard.general.url, url != self.emojiArtDocument.backgroundURL {
+                            self.confirmBackgroundPaste = true
+                        } else {
+                            self.explainBackgroundPaste = true
+                        }
+                    }, label: {
+                        Image(systemName: "doc.on.clipboard").imageScale(.large)
+                            .alert(isPresented: self.$explainBackgroundPaste) {
+                                return Alert(
+                                    title: Text("Paste Background"),
+                                    message: Text("Copy the URL of an image to the clip board and touch this button to make it the background of your document."),
+                                    dismissButton: .default(Text("OK"))
+                                )
+                            }
+                    }))
+                    
+                    if emojiArtDocument.isLoading {
+                        Image(systemName: "hourglass").imageScale(.large).spinning()
+                    } else {
+                        ForEach(emojiArtDocument.emojis) { emoji in
+                            Text(emoji.text)
+                                .font(animatableWithSize: emoji.fontSize * zoomScale)
+                                .position(position(for: emoji, in: geometry.size))
+                                .gesture(self.emojiPanGesture(move: emoji))
+                        }
                     }
+                    
+
                 }
-            }
+            }.zIndex(-1)
+            .alert(isPresented: $confirmBackgroundPaste, content: { () -> Alert in
+                Alert(title: Text("Paste Background"),
+                      message: Text("Replace your background with \(UIPasteboard.general.url?.absoluteString ?? "nothing")?."),
+                      primaryButton: .default(Text("OK")) {
+                    self.emojiArtDocument.backgroundURL = UIPasteboard.general.url
+                }, secondaryButton: .cancel())
+            })
            
             .clipped()
             .edgesIgnoringSafeArea([.horizontal, .bottom])
         }
     }
+    
+    @State private var explainBackgroundPaste = false
+    @State private var confirmBackgroundPaste = false
     
     //MARK: -- Gesture(s)
     @State private var steadyStateZoomScale: CGFloat = 1.0
@@ -132,7 +176,7 @@ struct EmojiArtsView: View {
     
     private func drop(providers: [NSItemProvider], at location: CGPoint) -> Bool {
         var found = providers.loadFirstObject(ofType: URL.self) { url in
-            self.emojiArtDocument.setBackgroundURL(url)
+            self.emojiArtDocument.backgroundURL = url
         }
         if !found {
             found = providers.loadObjects(ofType: String.self) { string in
